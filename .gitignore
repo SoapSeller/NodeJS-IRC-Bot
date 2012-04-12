@@ -1,1 +1,4 @@
 .idea
+*Bot.js
+*.sw*
+node_modules
