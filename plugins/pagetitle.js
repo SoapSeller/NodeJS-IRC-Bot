@@ -71,6 +71,8 @@ Plugin = exports.Plugin = function( irc ) {
               console.log(res); 
             }
           } else {
+            if (res.headers['content-type'].indexOf("text/html") != 0)
+              return;
             res.setEncoding('utf8');
             var html = "";
             res.on('data', function(chunk) { html += chunk; });
@@ -83,6 +85,9 @@ Plugin = exports.Plugin = function( irc ) {
 
                 if (titleM && (titleM.length > 1)) {
                   var title = titleM[2];
+                  if (title.length > 0 && title[0] == '/') {
+                    title = " " + title;
+                  }
                   self.irc.channels[c].send( title + " ( " + origUrl +" )");
                 } else {
                   console.log(html);
@@ -92,6 +97,9 @@ Plugin = exports.Plugin = function( irc ) {
               }
             });
           }
+        }).on('error', function(e) {
+          console.log("Got error: " + e.message);
+          self.irc.channels[c].send("Invalid address ( " + origUrl +" )");
         });
         } catch (err) {
           console.log("error in GET: " + err);
