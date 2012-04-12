@@ -43,8 +43,6 @@ Plugin = exports.Plugin = function( irc ) {
   var self = this;
 
   this.handleUrl = function(toParse, c, origUrl, retry) {
-    if (self.last == toParse) { return; }
-    self.last = toParse;
     if(!origUrl) { origUrl = toParse; }
     
     // Protect aginst too many redirects
@@ -168,6 +166,11 @@ Plugin.prototype.onMessage = function( msg ) {
     }
 
     try {
+      // TODO: Use DB of urls...
+      if (self.last == m) { return; }
+      else { console.log("***" + self.last + "|" + m + "***"); }
+      self.last = m;
+
       self.handleUrl(m, c);
     } catch (err) {
       console.log("General error in handleUrl: " + err);
