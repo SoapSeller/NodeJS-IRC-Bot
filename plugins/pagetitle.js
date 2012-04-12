@@ -11,6 +11,7 @@ var sys = require( 'util' );
 //jsdom = require('jsdom');	// JsDom https://github.com/tmpvar/jsdom
 
 http = require('http');
+https = require('https');
 url  = require('url');
 
 var jQueryPath = 'http://code.jquery.com/jquery-1.4.2.min.js';
@@ -33,7 +34,9 @@ Plugin = exports.Plugin = function( irc ) {
 	this.irc = irc;
 	
 	this.regex = /(^|\s)((https?:\/\/)?[\w-]+(\.[\w-]+)+\.?(:\d+)?(\/\S*)?)/gi;
-  this.titleRegex = /<title(.*)>(.*)<\/title>/i;
+  this.titleRegex = /<title(.*)>((.|\n)*)<\/title>/i;
+
+  this.userAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:11.0) Gecko/20100101 Firefox/11.0";
 
   this.last = "";
 
@@ -50,12 +53,25 @@ Plugin = exports.Plugin = function( irc ) {
 
     var u = url.parse(toParse);
     
-    if (!u.protocol || u.protocol == "http:") {
+    if (!u.protocol || u.protocol == "http:" || u.protocol == "https:") {
       console.log(u);
       try {
-        http.get({host: u.host, port: (u.port || 80), path: (u.path || "/")}, function(res) {
+        var req = {};
+
+        var options = { host: u.host,
+                        path: (u.path || "/"),
+                        headers: { 'User-Agent': self.userAgent } };
+
+        var requester = {};
+        if (u.protocol == "http:") {
+          options.port = (u.port || 80);
+          requester = http;
+        } else {
+          requester = https;
+        }
+
+        req = requester.get(options, function(res) {
           if (res.statusCode != 200) {
-            console.log(res);
             if (res.headers.location && res.headers.location.length > 0) {
               var l = res.headers.location;
               if (l.indexOf("http") < 0) {
@@ -71,8 +87,11 @@ Plugin = exports.Plugin = function( irc ) {
               console.log(res); 
             }
           } else {
-            if (res.headers['content-type'].indexOf("text/html") != 0)
+            if (res.headers['content-type'].indexOf("text/html") != 0) {
+              console.log("request is not for html page, aborting"); 
+              req.abort();
               return;
+            }
             res.setEncoding('utf8');
             var html = "";
             res.on('data', function(chunk) { html += chunk; });
@@ -85,6 +104,16 @@ Plugin = exports.Plugin = function( irc ) {
 
                 if (titleM && (titleM.length > 1)) {
                   var title = titleM[2];
+
+                  var titleLines = title.split('\n');
+                  if (titleLines.length > 1) {
+                    title = "";
+                    for (i in titleLines) {
+                      title += titleLines[i].fulltrim() + " ";
+                    }
+
+                    title = title.rtrim();
+                  }
                   if (title.length > 0 && title[0] == '/') {
                     title = " " + title;
                   }
@@ -117,6 +146,15 @@ Plugin.prototype.onMessage = function( msg ) {
   var self = this;
 		
   //this.irc.channels[ c ].send( '\002' + u + ':\002 Let op je taalgebruik!' );
+
+  if (text.indexOf("levis") > 0) {
+    self.irc.channels[c].send("Piss off.");
+    return;
+  }
+
+  if (text.length == 0 || text[0] == "!") {
+    return;
+  }
 
   var ms = text.match(self.regex);
   if (!ms) {
