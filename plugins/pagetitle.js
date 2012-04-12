@@ -8,8 +8,7 @@
 var sys = require( 'util' );
 
 //var request = require('ahr'), // Abstract-HTTP-request https://github.com/coolaj86/abstract-http-request
-events = require('events'),	// EventEmitter
-jsdom = require('jsdom');	// JsDom https://github.com/tmpvar/jsdom
+//jsdom = require('jsdom');	// JsDom https://github.com/tmpvar/jsdom
 
 http = require('http');
 url  = require('url');
@@ -34,6 +33,7 @@ Plugin = exports.Plugin = function( irc ) {
 	this.irc = irc;
 	
 	this.regex = /(^|\s)((https?:\/\/)?[\w-]+(\.[\w-]+)+\.?(:\d+)?(\/\S*)?)/gi;
+  this.titleRegex = /<title(.*)>(.*)<\/title>/i;
 
   this.last = "";
 
@@ -76,9 +76,17 @@ Plugin = exports.Plugin = function( irc ) {
             res.on('data', function(chunk) { html += chunk; });
             res.on('end', function() {
               try {
-              var window = jsdom.jsdom(html).createWindow();
+                // var window = jsdom.jsdom(html).createWindow();
+                // var title = window.document.title;
+                
+                var titleM = html.match(self.titleRegex);
 
-              self.irc.channels[c].send( window.document.title + " ( " + origUrl +" )");
+                if (titleM && (titleM.length > 1)) {
+                  var title = titleM[2];
+                  self.irc.channels[c].send( title + " ( " + origUrl +" )");
+                } else {
+                  console.log(html);
+                }
               } catch(err) {
                console.log("error in parsing: " + err);
               }
