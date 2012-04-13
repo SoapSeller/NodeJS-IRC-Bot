@@ -115,7 +115,7 @@ Plugin = exports.Plugin = function( irc ) {
                   if (title.length > 0 && title[0] == '/') {
                     title = " " + title;
                   }
-                  self.irc.channels[c].send( title + " ( " + origUrl +" )");
+                  self.irc.channels[c].send("\x02" + title + "\x02 ( \x0304" + origUrl +"\x0f )");
                 } else {
                   console.log(html);
                 }
@@ -126,7 +126,7 @@ Plugin = exports.Plugin = function( irc ) {
           }
         }).on('error', function(e) {
           console.log("Got error: " + e.message);
-          self.irc.channels[c].send("Invalid address ( " + origUrl +" )");
+          //self.irc.channels[c].send("\x02Invalid address\x02 ( \x0304\x1f" + origUrl +"\x0f )");
         });
         } catch (err) {
           console.log("error in GET: " + err);
