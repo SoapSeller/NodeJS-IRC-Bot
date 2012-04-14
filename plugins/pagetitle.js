@@ -10,9 +10,12 @@ var sys = require( 'util' );
 //var request = require('ahr'), // Abstract-HTTP-request https://github.com/coolaj86/abstract-http-request
 //jsdom = require('jsdom');	// JsDom https://github.com/tmpvar/jsdom
 
-http = require('http');
+http  = require('http');
 https = require('https');
-url  = require('url');
+url   = require('url');
+var Buffer = require('buffer').Buffer;
+var Iconv  = require('iconv').Iconv;
+
 
 var jQueryPath = 'http://code.jquery.com/jquery-1.4.2.min.js';
 var headers = {'content-type':'application/json', 'accept': 'application/json'};
@@ -34,7 +37,8 @@ Plugin = exports.Plugin = function( irc ) {
 	this.irc = irc;
 	
 	this.regex = /(^|\s)((https?:\/\/)?[\w-]+(\.[\w-]+)+\.?(:\d+)?(\/\S*)?)/gi;
-  this.titleRegex = /<title(.*)>((.|\n)*)<\/title>/i;
+  //this.titleRegex = /<title(.*)>((.|\n)*)<\/title>/i;
+  this.titleRegex = />([^<]*)<\/title/i;
 
   this.userAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:11.0) Gecko/20100101 Firefox/11.0";
 
@@ -52,7 +56,7 @@ Plugin = exports.Plugin = function( irc ) {
     var u = url.parse(toParse);
     
     if (!u.protocol || u.protocol == "http:" || u.protocol == "https:") {
-      console.log(u);
+      //console.log(u);
       try {
         var req = {};
 
@@ -69,60 +73,74 @@ Plugin = exports.Plugin = function( irc ) {
         }
 
         req = requester.get(options, function(res) {
-          if (res.statusCode != 200) {
-            if (res.headers.location && res.headers.location.length > 0) {
-              var l = res.headers.location;
-              if (l.indexOf("http") < 0) {
-                if (l[0] == "/") {
-                  l = u.protocol + "//" + u.host + l;
-                } else {
-                  l = u.href + "/" + l;
+          try {
+            if (res.statusCode != 200) {
+              if (res.headers.location && res.headers.location.length > 0) {
+                var l = res.headers.location;
+                if (l.indexOf("http") < 0) {
+                  if (l[0] == "/") {
+                    l = u.protocol + "//" + u.host + l;
+                  } else {
+                    l = u.href + "/" + l;
+                  }
                 }
+                self.handleUrl(l, c, origUrl, retry);
+              } else {
+                console.log("Wrong status code: " + res.statusCode);
+                console.log(res); 
               }
-              self.handleUrl(l, c, origUrl, retry);
             } else {
-              console.log("Wrong status code: " + res.statusCode);
-              console.log(res); 
-            }
-          } else {
-            if (res.headers['content-type'].indexOf("text/html") != 0) {
-              console.log("request is not for html page, aborting"); 
-              req.abort();
-              return;
-            }
-            res.setEncoding('utf8');
-            var html = "";
-            res.on('data', function(chunk) { html += chunk; });
-            res.on('end', function() {
-              try {
-                // var window = jsdom.jsdom(html).createWindow();
-                // var title = window.document.title;
-                
-                var titleM = html.match(self.titleRegex);
-
-                if (titleM && (titleM.length > 1)) {
-                  var title = titleM[2];
-
-                  var titleLines = title.split('\n');
-                  if (titleLines.length > 1) {
-                    title = "";
-                    for (i in titleLines) {
-                      title += titleLines[i].fulltrim() + " ";
-                    }
-
-                    title = title.rtrim();
-                  }
-                  if (title.length > 0 && title[0] == '/') {
-                    title = " " + title;
-                  }
-                  self.irc.channels[c].send("\x02" + title + "\x02 ( \x0304" + origUrl +"\x0f )");
-                } else {
-                  console.log(html);
-                }
-              } catch(err) {
-               console.log("error in parsing: " + err);
+              if (res.headers['content-type'].indexOf("text/html") != 0) {
+                console.log("request is not for html page, aborting"); 
+                req.abort();
+                return;
               }
-            });
+             
+              var charset = 'utf8';
+              var cTypeSplt = res.headers['content-type'].split(';');
+              if (cTypeSplt.length > 1 && cTypeSplt[1].indexOf('charset' >= 0)) {
+                charset = cTypeSplt[1].split(' ')[2];
+              }
+              res.setEncoding('utf8');
+              var html = "";
+              res.on('data', function(chunk) { html += chunk; });
+              res.on('end', function() {
+                try {
+                  //if (charset != 'utf8') {
+                  //  var buffer = new Buffer(html, 'binary');
+                  //  var conv = new Iconv(charset, 'utf8');
+                  //  html = conv.convert(html).toString();
+                  //}
+                  
+                  var titleM = html.match(self.titleRegex);
+
+                  if (titleM && (titleM.length > 1)) {
+                    var title = titleM[1];
+
+                    var titleLines = title.split('\n');
+                    if (titleLines.length > 1) {
+                      title = "";
+                      for (i in titleLines) {
+                        title += titleLines[i].fulltrim() + " ";
+                      }
+
+                      title = title.rtrim();
+                    }
+                    if (title.length > 0 && title[0] == '/') {
+                      title = " " + title;
+                    }
+                    //console.log(res);
+                    self.irc.channels[c].send("\x02" + title + "\x02 ( \x0304" + origUrl +"\x0f )");
+                  } else {
+                    console.log(html);
+                  }
+                } catch(err) {
+                 console.log("error in parsing: " + err);
+                }
+              });
+            }
+          } catch (err) {
+            console.log("Error in requester handler: " + err);
           }
         }).on('error', function(e) {
           console.log("Got error: " + e.message);
@@ -158,7 +176,7 @@ Plugin.prototype.onMessage = function( msg ) {
   if (!ms) {
     return;
   }
-  console.log(ms);
+  //console.log(ms);
   for (i in ms) {
     var m = ms[i].fulltrim();
     if (m.indexOf("http") != 0) {
@@ -168,7 +186,6 @@ Plugin.prototype.onMessage = function( msg ) {
     try {
       // TODO: Use DB of urls...
       if (self.last == m) { return; }
-      else { console.log("***" + self.last + "|" + m + "***"); }
       self.last = m;
 
       self.handleUrl(m, c);
