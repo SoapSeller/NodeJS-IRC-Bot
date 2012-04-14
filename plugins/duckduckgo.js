@@ -47,7 +47,10 @@ Plugin.prototype.trigDuck = function(msg) {
           if (d.AbstractText != "") {
             text = d.AbstractText;
           } else if(d.Definition) {
-            text = d.Definition;
+            if (d.Heading && d.Heading != "") {
+              text = d.Heading + ": ";
+            }
+            text = text + d.Definition;
           } else {
             text = d.Heading;
           }
