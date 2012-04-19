@@ -85,7 +85,7 @@ Server.prototype.connect = function() {
 
 Server.prototype.disconnect = function(reason) {
     if (this.connection.readyState !== 'closed') {
-        this.connection.close();
+        this.connection.destroy();
         sys.puts('disconnected (' + reason + ')');
     }
 };
