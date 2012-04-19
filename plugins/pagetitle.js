@@ -28,7 +28,8 @@ String.prototype.rtrim=function(){return this.replace(/\s+$/,'');}
 String.prototype.fulltrim=function(){return this.replace(/(?:(?:^|\n)\s+|\s+(?:$|\n))/g,'').replace(/\s+/g,' ');}
 
 Plugin = exports.Plugin = function( irc ) {
-	
+	var self = this;
+
 	this.name = 'pagetitle';
 	this.title = 'Get the title of a web page';
 	this.version = '0.1';
@@ -37,14 +38,16 @@ Plugin = exports.Plugin = function( irc ) {
 	this.irc = irc;
 	
 	this.regex = /(^|\s)((https?:\/\/)?[\w-]+(\.[\w-]+)+\.?(:\d+)?(\/\S*)?)/gi;
+  this.irc.checkForLink = function(message) {
+    return !!(message.match(self.regex));
+  };
+
   //this.titleRegex = /<title(.*)>((.|\n)*)<\/title>/i;
   this.titleRegex = />([^<]*)<\/title/i;
 
   this.userAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:11.0) Gecko/20100101 Firefox/11.0";
 
   this.last = "";
-
-  var self = this;
 
   this.handleUrl = function(toParse, c, origUrl, retry) {
     if(!origUrl) { origUrl = toParse; }
@@ -103,8 +106,11 @@ Plugin = exports.Plugin = function( irc ) {
               }
               res.setEncoding('utf8');
               var html = "";
-              res.on('data', function(chunk) { html += chunk; });
-              res.on('end', function() {
+              res.on('data', function(chunk) {
+                if (html == null) {
+                  return;
+                }
+                html += chunk;
                 try {
                   //if (charset != 'utf8') {
                   //  var buffer = new Buffer(html, 'binary');
@@ -131,11 +137,17 @@ Plugin = exports.Plugin = function( irc ) {
                     }
                     //console.log(res);
                     self.irc.channels[c].send("\x02" + title + "\x02 ( \x0304" + origUrl +"\x0f )");
-                  } else {
-                    console.log(html);
-                  }
+                    // Found end emited title, abort connection, also set html to null to block any call before the abort take place
+                    html = null;
+                    req.abort();
+                  } 
                 } catch(err) {
                  console.log("error in parsing: " + err);
+                }
+              });
+              res.on('end', function() {
+                if (html != null) {
+                  console.log("coulden't find title in file:\n" + html);
                 }
               });
             }
