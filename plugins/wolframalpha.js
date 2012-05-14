@@ -19,14 +19,15 @@ Plugin = exports.Plugin = function(irc) {
 
 	this.irc = irc;
   this.lastResultPods = [];
-  this.lastTitlePod = {};
+  this.lastTitlePod = null;
 
 	this.irc.addTrigger(this, 'a', this.trigAlpha);
 	this.irc.addTrigger(this, 'an', this.trigAlphaNextPod);
 };
 
 var convertUtf = function(str) {
-  var regex = /\\:(.{4})/g;
+  str = str.replace("\n", " ");
+  var regex = /\\:(.{4})/;
   var m;
   var outStr = "";
   while(m = regex.exec(str)) {
@@ -36,6 +37,12 @@ var convertUtf = function(str) {
   outStr = outStr + str;
 
   return outStr;
+};
+
+var doSend = function (channel, titlePod, resultPod) {
+
+  channel.send("\x02" + convertUtf(titlePod.plaintext) + ": " + convertUtf(resultPod.subpod.plaintext) + " (" + convertUtf(resultPod["@"].title) + ")");
+
 };
 
 Plugin.prototype.trigAlpha = function(msg) {
@@ -66,12 +73,17 @@ Plugin.prototype.trigAlpha = function(msg) {
           try {
             if (!err && a.pod && a.pod.length > 1) {
               var titlePod = a.pod.shift().subpod;
-              var resultPod = a.pod.shift().subpod;
-              this.lastResultPods = a.pod;
-              this.lastTitlePod = titlePod;
-    
-              irc.channels[c].send("\x02" + convertUtf(titlePod.plaintext) + ": " + convertUtf(resultPod.plaintext));
-              return;
+              var resultPod;
+              
+              while(resultPod = a.pod.shift()) {
+                if (typeof(resultPod.subpod.plaintext) == "string") {
+                  self.lastResultPods = a.pod;
+                  self.lastTitlePod = titlePod;
+                
+                  doSend(irc.channels[c], titlePod, resultPod);
+                  return;
+                }
+              }
             }
 
             irc.channels[c].send("\x02Sorry, can't find anything on \"" + strPrint + "\" :(");
@@ -90,21 +102,14 @@ Plugin.prototype.trigAlphaNextPod = function(msg) {
 		m = msg.arguments[1], // message
         params = m.split(' ');
 
-  if (!this.lastTitlePod) {
-    console.log("no last title");
+  var resultPod;
+  if (this.lastTitlePod == null ||
+      (resultPod = this.lastResultPods.shift()) == null) {
+    irc.channels[c].send("\x02End of results.");
     return;
   }
 
-  var pod = this.lastResultPods.shift();
 
-  if (!pod) {
-    console.log("no last res pod");
-    return;
-  }
-
-  var resultPod = pod.subpod;
-
-
-  irc.channels[c].send("\x02" + this.lastTitlePod.plaintext + ": " + resultPod.plaintext);
+  doSend(irc.channels[c], this.lastTitlePod, resultPod);
 
 };
