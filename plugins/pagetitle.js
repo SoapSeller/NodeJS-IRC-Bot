@@ -7,15 +7,11 @@
  */
 var sys = require( 'util' );
 
-//var request = require('ahr'), // Abstract-HTTP-request https://github.com/coolaj86/abstract-http-request
-//jsdom = require('jsdom');	// JsDom https://github.com/tmpvar/jsdom
-
-http  = require('http');
-https = require('https');
-url   = require('url');
-var Buffer = require('buffer').Buffer;
-var Iconv  = require('iconv').Iconv;
-
+http     = require('http');
+https    = require('https');
+url      = require('url');
+entities = require("entities");
+iconv    = require('iconv-lite');
 
 var jQueryPath = 'http://code.jquery.com/jquery-1.4.2.min.js';
 var headers = {'content-type':'application/json', 'accept': 'application/json'};
@@ -104,20 +100,16 @@ Plugin = exports.Plugin = function( irc ) {
               if (cTypeSplt.length > 1 && cTypeSplt[1].indexOf('charset' >= 0)) {
                 charset = cTypeSplt[1].split(' ')[2];
               }
-              res.setEncoding('utf8');
-              var html = "";
+              var html = '';
               res.on('data', function(chunk) {
                 if (html == null) {
                   return;
                 }
-                html += chunk;
+                // This is somewhat optimistic(it doesn't handle cases where charchaters spans chunks),
+                // but it should be alright(title usually fits in the first chunk anyway)
+                html += iconv.decode(chunk, charset);
+
                 try {
-                  //if (charset != 'utf8') {
-                  //  var buffer = new Buffer(html, 'binary');
-                  //  var conv = new Iconv(charset, 'utf8');
-                  //  html = conv.convert(html).toString();
-                  //}
-                  
                   var titleM = html.match(self.titleRegex);
 
                   if (titleM && (titleM.length > 1)) {
@@ -135,6 +127,10 @@ Plugin = exports.Plugin = function( irc ) {
                     if (title.length > 0 && title[0] == '/') {
                       title = " " + title;
                     }
+                    
+                    // Decode HTML chars in title
+                    title = entities.decode(title);
+
                     //console.log(res);
                     self.irc.channels[c].send("\x02" + title + "\x02 ( \x0304" + origUrl +"\x0f )");
                     // Found end emited title, abort connection, also set html to null to block any call before the abort take place
