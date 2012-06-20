@@ -103,13 +103,19 @@ Plugin.prototype.trigAlphaNextPod = function(msg) {
         params = m.split(' ');
 
   var resultPod;
-  if (this.lastTitlePod == null ||
-      (resultPod = this.lastResultPods.shift()) == null) {
-    irc.channels[c].send("\x02End of results.");
-    return;
+
+  if (this.lastTitlePod != null) {
+
+    while ((resultPod = this.lastResultPods.shift()) != null &&
+           typeof(resultPod.subpod.plaintext) != 'string') {
+    }
+
+    if (resultPod == null ||
+        typeof(resultPod.subpod.plaintext) != 'string') {
+      irc.channels[c].send("\x02End of results.");
+      return;
+    }
+  
+    doSend(irc.channels[c], this.lastTitlePod, resultPod);
   }
-
-
-  doSend(irc.channels[c], this.lastTitlePod, resultPod);
-
 };
