@@ -20,7 +20,7 @@ Plugin.prototype.onNumeric = function(msg) {
     var command = msg.command;
 
     // 376 is end of MOTD/modes
-    if (command !== '376') {
+    if (command !== '376' && command !== '422') {
         return;
     }
 
