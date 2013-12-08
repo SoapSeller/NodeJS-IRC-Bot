@@ -8,6 +8,7 @@
 
 var sys = require('util'),
 	net = require('net'),
+	tls = require('tls'),
 	fs = require('fs'),
     user = require ('./user' ),
 	channel = require('./channel');
@@ -22,6 +23,7 @@ Server.prototype.initialize = function(config) {
 	this.host = config.host || '127.0.0.1';
 	this.port = config.port || 6667;
 	this.nick = config.nick || 'MikeBot';
+	this.ssl  = config.ssl || false;
 	this.username = config.username || 'MikeBot';
 	this.realname = config.realname || 'Powered by MikeBot';
 	this.command = config.command || '.';
@@ -72,11 +74,11 @@ Server.prototype.initialize = function(config) {
 };
 
 Server.prototype.connect = function() {
-	var c = this.connection = net.createConnection(this.port, this.host);
+	var c = this.connection = this.ssl ? tls.connect(this.port, this.host, {rejectUnauthorized: false})  : net.createConnection(this.port, this.host);
     c.setEncoding(this.encoding);
     c.setTimeout(this.timeout);
 
-	this.addListener('connect', this.onConnect);
+	this.addListener(this.ssl ? 'secureConnect' : 'connect', this.onConnect);
     this.addListener('data', this.onReceive);
     this.addListener('eof', this.onEOF);
     this.addListener('timeout', this.onTimeout);
@@ -91,7 +93,14 @@ Server.prototype.disconnect = function(reason) {
 };
 
 Server.prototype.onConnect = function() {
-	sys.puts('connected');
+	if (this.connection['authorized'])
+	{
+		sys.puts('connected(SSL): ' + this.connection.authorized ? "" : "NOT " + "authorized");
+	}
+	else
+	{
+		sys.puts('connected');
+	}
 
     this.raw('NICK', this.nick);
     this.raw('USER', this.username, '0', '*', ':' + this.realname);
