@@ -34,7 +34,6 @@ Plugin.prototype.trigGoogle = function(msg) {
 
   var strPrint = params.join(" ");
   str = encodeURIComponent(strPrint);
-  url.parse
   console.log("Google: " + str);
   var options = { host: "www.googleapis.com",
                   path: "/customsearch/v1?prettyPrint=false&cx=013036536707430787589:_pqjad5hr1a&key=" + irc.config.googleKey + "&q=" + str };
