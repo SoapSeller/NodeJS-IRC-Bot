@@ -16,6 +16,7 @@ var config = {
 	port:		6667,
 	nick:		'NodeBot',
 	username:	'NodeBot',
+	ssl:            'false',
 	realname:	'Powered by Michael Owens',
 	channels:	['#nodejs'],
 	command:	'.',
