@@ -15,6 +15,7 @@ var config = {
 	host:		'irc.freenode.com',
 	port:		6667,
 	nick:		'NodeBot',
+	altNick: 	'MikeBot2'
 	username:	'NodeBot',
 	ssl:            'false',
 	realname:	'Powered by Michael Owens',

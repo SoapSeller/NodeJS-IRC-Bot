@@ -23,6 +23,7 @@ Server.prototype.initialize = function(config) {
 	this.host = config.host || '127.0.0.1';
 	this.port = config.port || 6667;
 	this.nick = config.nick || 'MikeBot';
+	this.altNick = config.altNick || 'MikeBot2';
 	this.ssl  = config.ssl || false;
 	this.username = config.username || 'MikeBot';
 	this.realname = config.realname || 'Powered by MikeBot';
@@ -148,6 +149,9 @@ Server.prototype.onMessage = function(msg) {
 			this.raw('PONG', msg.arguments);
 			break;
 
+		case (command === '433'): // nick allready in use
+			this.raw('NICK', this.altNick);
+			break;
 		case (command === 'PRIVMSG'):
             if (user) {
                 user.update(msg.prefix);
